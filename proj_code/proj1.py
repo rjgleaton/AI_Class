@@ -1,7 +1,9 @@
+# By RJ Gleaton, Jan 2021
 from typing import List, Tuple, Set, Dict, Optional, cast
 from environments.environment_abstract import Environment, State
 from environments.farm_grid_world import FarmState
 from heapq import heappush, heappop
+import pdb
 
 
 class Node:
@@ -31,27 +33,47 @@ def get_next_state_and_transition_cost(env: Environment, state: State, action: i
 
 
 def expand_node(env: Environment, parent_node: Node) -> List[Node]:
-    # TODO implement
+    actions = env.get_actions()
+    nodeList = []
+    for i in actions:
+        nextNodeState = get_next_state_and_transition_cost(env, parent_node.state, i)
+        newNode = Node(nextNodeState[0], nextNodeState[1]+parent_node.path_cost, i, parent_node, parent_node.depth+1)
+        nodeList.append(newNode)
+    return nodeList
     pass
 
 
 def get_soln(node: Node) -> List[int]:
-    # TODO implement
+    actionsList = []
+    while True:
+        if node.parent is None and node.parent_action is None:
+            actionsList.reverse()
+            return actionsList
+        actionsList.append(node.parent_action)
+        node = node.parent
     pass
 
 
 def is_cycle(node: Node) -> bool:
-    # TODO implement
+    stateToCheck = node.state
+    while True:
+        if node.parent is None:
+            #pdb.set_trace()
+            return False
+        if node.parent.state == stateToCheck:
+            #pdb.set_trace()
+            return True
+        node = node.parent
     pass
 
 
 def get_heuristic(node: Node) -> float:
     state: FarmState = cast(FarmState, node.state)
-    # TODO implement
-
+    return (abs(state.agent_idx[0]-state.goal_idx[0])+abs(state.agent_idx[1]-state.goal_idx[1]))
+    pass
 
 def get_cost(node: Node, heuristic: float, weight_g: float, weight_h: float) -> float:
-    # TODO implement
+    return ((weight_g*node.path_cost)+(weight_h*heuristic))
     pass
 
 
@@ -72,7 +94,16 @@ class BreadthFirstSearch:
         self.closed_set.add(root_node.state)
 
     def step(self):
-        # TODO implement
+        if len(self.fifo) > 0:
+            curNode = self.fifo.pop(0)
+        for i in expand_node(self.env, curNode):
+            s = i.state
+            if self.env.is_terminal(s):
+                #pdb.set_trace()
+                return i
+            if not s in self.closed_set:
+                self.closed_set.add(s)
+                self.fifo.append(i)
         pass
 
 
@@ -90,7 +121,19 @@ class DepthLimitedSearch:
         self.lifo.append(root_node)
 
     def step(self):
-        # TODO implement
+        #pdb.set_trace()
+        currNode = self.lifo.pop()
+        if self.env.is_terminal(currNode.state):
+            #pdb.set_trace()
+            return currNode
+        if currNode.depth >= self.limit:
+            #pdb.set_trace()
+            return None
+        elif not is_cycle(currNode):
+            #pdb.set_trace()
+            for i in expand_node(self.env, currNode):
+                #if not i in visitedNodeList:
+                    self.lifo.insert(len(self.lifo),i)
         pass
 
 
@@ -116,5 +159,15 @@ class BestFirstSearch:
         heappush(self.priority_queue, (cost, root_node))
 
     def step(self):
-        # TODO implement
+        currNode = heappop(self.priority_queue)[1]
+        if self.env.is_terminal(currNode.state):
+            #pdb.set_trace()
+            return currNode
+        for i in expand_node(self.env, currNode):
+            state = i.state
+            if state not in self.closed_dict or i.path_cost < self.closed_dict[state].path_cost:
+                self.closed_dict[state] = i
+                newheuristic = get_heuristic(currNode)
+                newCost = get_cost(i, newheuristic, self.weight_g, self.weight_h)
+                heappush(self.priority_queue, (newCost, i))
         pass
